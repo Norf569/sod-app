@@ -11,16 +11,6 @@ import os
 import cv2
 import json
 
-
-'''
-
-mem leak
-
-проверка на уверенность
-
-'''
-
-
 class Ocr:
     def __init__(self, app: design.Ui_MainWindow):
         self.logger = logging.getLogger(__name__)
