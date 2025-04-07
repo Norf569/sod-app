@@ -55,7 +55,7 @@
         <item>
          <widget class="QStackedWidget" name="stackedWidget_sim">
           <property name="currentIndex">
-           <number>0</number>
+           <number>1</number>
           </property>
           <widget class="QWidget" name="page_6">
            <layout class="QVBoxLayout" name="verticalLayout_14">
@@ -239,7 +239,7 @@
                    </property>
                    <property name="maximumSize">
                     <size>
-                     <width>100</width>
+                     <width>16777215</width>
                      <height>100</height>
                     </size>
                    </property>
@@ -321,7 +321,7 @@
               <item>
                <widget class="QGroupBox" name="groupBox_7">
                 <property name="title">
-                 <string>Файлы</string>
+                 <string>Результаты сравнения</string>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_7">
                  <property name="spacing">
@@ -417,11 +417,6 @@
                      <height>16777215</height>
                     </size>
                    </property>
-                   <property name="font">
-                    <font>
-                     <pointsize>8</pointsize>
-                    </font>
-                   </property>
                    <property name="text">
                     <string>0</string>
                    </property>
@@ -501,7 +496,7 @@
               <item>
                <widget class="QGroupBox" name="groupBox_9">
                 <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                   <horstretch>0</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
@@ -515,6 +510,9 @@
                    <property name="text">
                     <string>Изображение</string>
                    </property>
+                   <property name="scaledContents">
+                    <bool>false</bool>
+                   </property>
                    <property name="alignment">
                     <set>Qt::AlignCenter</set>
                    </property>
@@ -526,7 +524,7 @@
               <item>
                <widget class="QGroupBox" name="groupBox_10">
                 <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                   <horstretch>0</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
@@ -539,6 +537,9 @@
                   <widget class="QLabel" name="sim_image_label">
                    <property name="text">
                     <string>Изображение</string>
+                   </property>
+                   <property name="scaledContents">
+                    <bool>false</bool>
                    </property>
                    <property name="alignment">
                     <set>Qt::AlignCenter</set>
@@ -579,7 +580,7 @@
         <item>
          <widget class="QStackedWidget" name="stackedWidget_ocr">
           <property name="currentIndex">
-           <number>0</number>
+           <number>1</number>
           </property>
           <widget class="QWidget" name="page">
            <layout class="QVBoxLayout" name="verticalLayout_15">
@@ -735,7 +736,7 @@
                  </size>
                 </property>
                 <property name="title">
-                 <string>Файлы</string>
+                 <string>Изображения</string>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_5">
                  <property name="spacing">
@@ -897,6 +898,9 @@
                    <property name="text">
                     <string>Изображение</string>
                    </property>
+                   <property name="scaledContents">
+                    <bool>false</bool>
+                   </property>
                    <property name="alignment">
                     <set>Qt::AlignCenter</set>
                    </property>
@@ -930,11 +934,6 @@
                      <width>16777215</width>
                      <height>16777215</height>
                     </size>
-                   </property>
-                   <property name="font">
-                    <font>
-                     <pointsize>14</pointsize>
-                    </font>
                    </property>
                   </widget>
                  </item>
@@ -972,7 +971,7 @@
         <item>
          <widget class="QStackedWidget" name="stackedWidget_detection">
           <property name="currentIndex">
-           <number>0</number>
+           <number>1</number>
           </property>
           <widget class="QWidget" name="page_3">
            <layout class="QVBoxLayout" name="verticalLayout_16">
@@ -1125,7 +1124,7 @@
                  </size>
                 </property>
                 <property name="title">
-                 <string>Файлы</string>
+                 <string>Изображения</string>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_11">
                  <property name="leftMargin">

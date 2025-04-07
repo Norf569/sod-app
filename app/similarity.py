@@ -7,14 +7,7 @@ import design
 import os
 import cv2
 import json
-
-'''
-
-убрать images
-перепроверить на ошибки
-протестировать
-
-'''
+from utils.tools import update_pixmap
 
 class Similarity:
     def __init__(self, app: design.Ui_MainWindow):
@@ -25,9 +18,9 @@ class Similarity:
         self.src_file = None
         self.src_image = None
         self.files = []
-        self.images = []
+        self.image = None
         self.sims_list = []
-        self.slider_pressed = False
+        self.slider_flag = False
         self.cancel_flag = False
 
         self.setup_ui()
@@ -42,8 +35,7 @@ class Similarity:
         self.app.sim_add_src_button.clicked.connect(self.getSrcFile)
         self.app.sim_delete_src_button.clicked.connect(self.deleteSrcFile)
 
-        sim_callback = lambda: threading.Thread(target=self.process).start()
-        self.app.sim_button.clicked.connect(sim_callback)
+        self.app.sim_button.clicked.connect(self.process_callback)
 
         self.app.sim_save_button.clicked.connect(self.save)
         self.app.sim_degree_slider.valueChanged.connect(self.thresholdUpdate)
@@ -53,10 +45,10 @@ class Similarity:
         self.app.sim_cancel_button.clicked.connect(self.cancel)
 
     def pressedFlagRaise(self):
-        self.slider_pressed = True
+        self.slider_flag = True
 
     def pressedFlagDown(self):
-        self.slider_pressed = False
+        self.slider_flag = False
         self.updateDegree()
 
     def getFiles(self):
@@ -69,7 +61,6 @@ class Similarity:
             return
         
         self.files = files
-        self.images = [cv2.imread(file) for file in self.files]
         self.sims_list = []
 
         self.app.sim_degree_label.clear()
@@ -99,7 +90,7 @@ class Similarity:
 
         self.app.sim_src_lineEdit.clear()
         self.app.sim_src_lineEdit.setText(os.path.basename(file))
-        self.displayImage(self.app.sim_src_label, self.src_image)
+        update_pixmap(self.app.sim_src_label, self.src_image)
 
         self.app.sim_degree_label.clear()
         self.updateDegree()
@@ -112,7 +103,7 @@ class Similarity:
         index = int(self.app.sim_files_tableWidget.item(row_index, 2).text())
         
         self.files.pop(index)
-        self.images.pop(index)
+        self.image = None
         if (self.sims_list != []):
             self.sims_list.pop(index)
         self.app.sim_image_label.clear()
@@ -151,7 +142,8 @@ class Similarity:
         if (self.sims_list != []):
             self.app.sim_degree_label.setText(str(self.sims_list[index]))
 
-        self.displayImage(self.app.sim_image_label, self.images[index])
+        self.image = cv2.imread(self.files[index])
+        update_pixmap(self.app.sim_image_label, self.image)
 
     def updateDegree(self):
         self.app.sim_files_tableWidget.setSortingEnabled(False)
@@ -179,26 +171,11 @@ class Similarity:
                     else:
                         self.app.sim_files_tableWidget.showRow(row)
 
-    def displayImage(self, label: QtWidgets.QLabel, image):
-        qt_image = QtGui.QImage(image,
-                              image.shape[1],
-                              image.shape[0],
-                              image.strides[0],
-                              QtGui.QImage.Format.Format_BGR888)
-        pixmap = QtGui.QPixmap.fromImage(qt_image).scaled(
-            label.width(),
-            label.height(),
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation
-        ) 
-        label.setPixmap(pixmap)
-        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-
     def thresholdUpdate(self):
         self.threshold = self.app.sim_degree_slider.value()
         self.app.sim_degree_lineEdit.setText(str(self.threshold))
 
-        if (not self.slider_pressed):
+        if (not self.slider_flag):
             self.updateDegree()
 
     def setup_model(self):
@@ -222,13 +199,21 @@ class Similarity:
             self.app.stackedWidget_sim.setCurrentIndex(1)
             self.logger.info('similarity model initialized')
 
+    def process_callback(self):
+        if self.files == [] or self.src_file == None:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Недостаточно данных для обработки!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            return
+        
+        threading.Thread(target=self.process).start()
+
     def process(self):
         if self.similarity == None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 
                                   'Модель не инициализирована!', 
                                   buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
             return
-    
+
         self.logger.info(f'processing...')
 
         self.app.sim_info_label.setText('Идёт вычисление степени сходства...')
@@ -247,8 +232,9 @@ class Similarity:
             for index in range(len(self.files)):
                 if (self.cancel_flag):
                     break
-
-                sim = self.similarity.compute(self.src_image, self.images[index])
+                
+                img = cv2.imread(self.files[index])
+                sim = self.similarity.compute(self.src_image, img)
                 self.sims_list[index] = round((sim + 1) / 2.0 * 100)
 
                 progress += 1

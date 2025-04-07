@@ -2,19 +2,11 @@ import threading
 from utils.ObjectDetector import ObjectDetector
 from configs import config
 import logging
-from PyQt6 import QtWidgets, QtGui, QtCore
+from PyQt6 import QtWidgets
 import design
 import os
 import cv2
-
-
-'''
-
-найти когда ничего нету
-сохранить когда ничего не найдено
-ресайз
-
-'''
+from utils.tools import update_pixmap
 
 class Detection:
     def __init__(self, app: design.Ui_MainWindow):
@@ -25,6 +17,7 @@ class Detection:
         self.conf_threshold = 0.5
         self.files = []
         self.images = []
+        self.cidx = -1
         self.cancel_flag = False
 
         self.setup_ui()
@@ -35,8 +28,7 @@ class Detection:
         self.app.det_delete_button.clicked.connect(self.deleteFile)
         self.app.det_files_listWidget.clicked.connect(self.updateInfo)
 
-        det_obj_callback = lambda: threading.Thread(target=self.process).start()
-        self.app.det_obj_button.clicked.connect(det_obj_callback)
+        self.app.det_obj_button.clicked.connect(self.process_callback)
         self.app.det_cancel_button.clicked.connect(self.cancel)
 
         self.app.det_save_all_button.clicked.connect(self.save_callback)
@@ -76,24 +68,12 @@ class Detection:
 
     def updateInfo(self):
         index = self.app.det_files_listWidget.currentIndex().row()
+        self.cidx = index
 
         if (index == -1):
             return
 
-        image = self.images[index]
-        qt_image = QtGui.QImage(image,
-                              image.shape[1],
-                              image.shape[0],
-                              image.strides[0],
-                              QtGui.QImage.Format.Format_BGR888)
-        pixmap = QtGui.QPixmap.fromImage(qt_image).scaled(
-            self.app.det_image_label.width(),
-            self.app.det_image_label.height(),
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation
-        ) 
-        self.app.det_image_label.setPixmap(pixmap)
-        self.app.det_image_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        update_pixmap(self.app.det_image_label, self.images[index])
 
     def setup_model(self):
         self.logger.info('detection model initializing...')
@@ -119,6 +99,14 @@ class Detection:
 
     def dispose_model(self):
         pass
+
+    def process_callback(self):
+        if self.files == []:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для обработки!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            return
+        
+        threading.Thread(target=self.process).start()
 
     def process(self):
         if self.detector == None:
@@ -179,7 +167,7 @@ class Detection:
         if path == '':
             return
         
-        if len(self.files) == 0:
+        if self.files == []:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для сохранения!', 
                                   QtWidgets.QMessageBox.StandardButton.Close).exec()
             return

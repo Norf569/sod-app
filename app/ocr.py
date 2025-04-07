@@ -4,7 +4,8 @@ from utils.TextRecognizer import TextRecognizer
 from configs import config
 from PIL import Image
 import logging
-from PyQt6 import QtWidgets, QtGui, QtCore
+from PyQt6 import QtWidgets
+from utils.tools import update_pixmap
 import design
 import os
 import cv2
@@ -31,6 +32,7 @@ class Ocr:
         self.conf_threshold = 0.5
         self.files = []
         self.images = []
+        self.cidx = -1
         self.texts = []
         self.cancel_flag = False
 
@@ -47,8 +49,7 @@ class Ocr:
         self.app.ocr_rus_button.clicked.connect(self.langRus)
         self.app.ocr_eng_button.clicked.connect(self.langEng)
 
-        ocr_callback = lambda: threading.Thread(target=self.process).start()
-        self.app.ocr_button.clicked.connect(ocr_callback)
+        self.app.ocr_button.clicked.connect(self.process_callback)
         self.app.ocr_cancel_button.clicked.connect(self.cancel)
 
         self.app.ocr_save_button.clicked.connect(self.save_callback)
@@ -91,24 +92,12 @@ class Ocr:
 
     def updateInfo(self):
         index = self.app.ocr_files_listWidget.currentIndex().row()
+        self.cidx = index
 
         if (index == -1):
             return
 
-        image = self.images[index]
-        qt_image = QtGui.QImage(image,
-                              image.shape[1],
-                              image.shape[0],
-                              image.strides[0],
-                              QtGui.QImage.Format.Format_BGR888)
-        pixmap = QtGui.QPixmap.fromImage(qt_image).scaled(
-            self.app.ocr_image_label.width(),
-            self.app.ocr_image_label.height(),
-            QtCore.Qt.AspectRatioMode.KeepAspectRatio,
-            QtCore.Qt.TransformationMode.SmoothTransformation
-        ) 
-        self.app.ocr_image_label.setPixmap(pixmap)
-        self.app.ocr_image_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        update_pixmap(self.app.ocr_image_label, self.images[index])
 
         self.app.ocr_textBrowser.setText('\n'.join(self.texts[index]))
 
@@ -158,6 +147,14 @@ class Ocr:
 
     def dispose_model(self):
         pass
+
+    def process_callback(self):
+        if (self.files == []): 
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для обработки!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            return
+        
+        threading.Thread(target=self.process).start()
 
     def process(self):
         if (self.detector == None or 
@@ -228,7 +225,7 @@ class Ocr:
         if path == '':
             return
         
-        if (len(self.files) == 0): 
+        if (self.files == []): 
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для сохранения!', 
                                   QtWidgets.QMessageBox.StandardButton.Close).exec()
             return

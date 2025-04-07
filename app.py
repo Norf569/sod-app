@@ -1,8 +1,9 @@
 	
 import sys 
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtGui
 import design
 
+from utils.tools import update_pixmap
 from app.detection import Detection
 from app.ocr import Ocr 
 from app.similarity import Similarity
@@ -19,6 +20,10 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
         self.setupUi(self)
 
+        font = QtGui.QFont();
+        font.setPointSize(12);
+        self.setFont(font);
+
         self.detector = Detection(self)
         self.ocr = Ocr(self)
         self.similarity = Similarity(self)
@@ -28,6 +33,22 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
         threading.Thread(target=self.detector.setup_model).start()
         threading.Thread(target=self.ocr.setup_model).start()
         threading.Thread(target=self.similarity.setup_model).start()
+
+    def resizeEvent(self, event):
+        tab = self.tabWidget.currentIndex()
+        if tab == 0:
+            update_pixmap(self.sim_image_label, self.similarity.image)
+            update_pixmap(self.sim_src_label, self.similarity.src_image)
+        elif tab == 1:
+            index = self.ocr.cidx
+            if index != -1:
+                update_pixmap(self.ocr_image_label, self.ocr.images[index])
+        elif tab == 2:
+            index = self.detector.cidx
+            if index != -1:
+                update_pixmap(self.det_image_label, self.detector.images[index])
+
+        super().resizeEvent(event)
 
 def main():
     logging.basicConfig(filename='log.log', level=logging.INFO,
