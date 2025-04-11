@@ -34,6 +34,13 @@ class Detection:
         self.app.det_save_all_button.clicked.connect(self.save_callback)
 
     def getFiles(self):
+        if self.files != []:
+            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+            
+            
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(None, 
                                                           'Выбрать изображения', 
                                                           './', 
@@ -185,7 +192,7 @@ class Detection:
         try:
             for idx in range(len(self.images)):
                 filename = os.path.basename(self.files[idx])
-                cv2.imwrite(os.path.join(path, filename), self.images[idx])
+                cv2.imwrite(os.path.join(path, f'{filename}_objects'), self.images[idx])
         except Exception as ex:
             self.logger.exception(ex)
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось сохранить файлы!', 

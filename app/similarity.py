@@ -52,6 +52,12 @@ class Similarity:
         self.updateDegree()
 
     def getFiles(self):
+        if self.sims_list != []:
+            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(None, 
                                                             'Выбрать изображения', 
                                                             './', 
@@ -76,6 +82,7 @@ class Similarity:
         self.updateInfo()
 
     def getSrcFile(self):
+        #данные добавляются, а не удаляются
         file, _ = QtWidgets.QFileDialog.getOpenFileName(None, 
                                                         'Выбрать изображение', 
                                                         './', 

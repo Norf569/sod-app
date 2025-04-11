@@ -45,6 +45,12 @@ class Ocr:
         self.app.ocr_save_button.clicked.connect(self.save_callback)
 
     def getFiles(self):
+        if self.files != []:
+            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
+
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(None, 
                                                           'Выбрать изображения', 
                                                           './', 
@@ -54,6 +60,8 @@ class Ocr:
             return
         
         self.files = files
+        self.images = []
+        self.texts = []
         for file in self.files:
             self.images.append(cv2.imread(file))
             self.texts.append([])
@@ -99,7 +107,7 @@ class Ocr:
     def langRus(self):
         self.app.ocr_eng_button.setChecked(False)
         self.app.ocr_rus_button.setChecked(True)
-        self.lang = 'eng'
+        self.lang = 'rus'
 
     def setup_model(self):
         self.logger.info('text detection model initializing...')
@@ -201,6 +209,7 @@ class Ocr:
                                   QtWidgets.QMessageBox.StandardButton.Close).exec()
         else:
             self.cancel_flag = False
+            # self.updateInfo()
             self.app.stackedWidget_ocr.setCurrentIndex(1)
             self.logger.info(f'text detection and recognition done')
 
