@@ -320,6 +320,12 @@
               </item>
               <item>
                <widget class="QGroupBox" name="groupBox_7">
+                <property name="minimumSize">
+                 <size>
+                  <width>280</width>
+                  <height>0</height>
+                 </size>
+                </property>
                 <property name="title">
                  <string>Результаты сравнения</string>
                 </property>
@@ -349,7 +355,7 @@
                    </property>
                    <property name="minimumSize">
                     <size>
-                     <width>200</width>
+                     <width>0</width>
                      <height>0</height>
                     </size>
                    </property>
@@ -366,7 +372,10 @@
                     <number>3</number>
                    </property>
                    <attribute name="horizontalHeaderVisible">
-                    <bool>false</bool>
+                    <bool>true</bool>
+                   </attribute>
+                   <attribute name="horizontalHeaderStretchLastSection">
+                    <bool>true</bool>
                    </attribute>
                    <attribute name="verticalHeaderVisible">
                     <bool>false</bool>
@@ -389,6 +398,13 @@
                     <widget class="QPushButton" name="sim_delete_button">
                      <property name="text">
                       <string>Удалить</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="sim_delete_all_button">
+                     <property name="text">
+                      <string>Удалить всё</string>
                      </property>
                     </widget>
                    </item>
@@ -731,7 +747,7 @@
                <widget class="QGroupBox" name="groupBox">
                 <property name="minimumSize">
                  <size>
-                  <width>200</width>
+                  <width>280</width>
                   <height>0</height>
                  </size>
                 </property>
@@ -786,6 +802,13 @@
                     <widget class="QPushButton" name="ocr_delete_button">
                      <property name="text">
                       <string>Удалить</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QPushButton" name="ocr_delete_all_button">
+                     <property name="text">
+                      <string>Удалить всё</string>
                      </property>
                     </widget>
                    </item>
@@ -1119,7 +1142,7 @@
                <widget class="QGroupBox" name="groupBox_3">
                 <property name="minimumSize">
                  <size>
-                  <width>200</width>
+                  <width>280</width>
                   <height>0</height>
                  </size>
                 </property>
@@ -1168,6 +1191,13 @@
                      </property>
                     </widget>
                    </item>
+                   <item>
+                    <widget class="QPushButton" name="det_delete_all_button">
+                     <property name="text">
+                      <string>Удалить всё</string>
+                     </property>
+                    </widget>
+                   </item>
                   </layout>
                  </item>
                 </layout>
@@ -1212,6 +1242,12 @@
               </property>
               <item>
                <widget class="QGroupBox" name="groupBox_4">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="title">
                  <string>Выбранное изображение</string>
                 </property>

@@ -27,6 +27,7 @@ class Detection:
         self.app.det_image_label.setText('')
         self.app.det_add_button.clicked.connect(self.getFiles)
         self.app.det_delete_button.clicked.connect(self.deleteFile)
+        self.app.det_delete_all_button.clicked.connect(self.deleteAllFiles)
         self.app.det_files_listWidget.clicked.connect(self.updateInfo)
 
         self.app.det_obj_button.clicked.connect(self.process_callback)
@@ -35,12 +36,8 @@ class Detection:
         self.app.det_save_all_button.clicked.connect(self.save_callback)
 
     def getFiles(self):
-        if self.files != []:
-            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
-                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
-            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
-                return
-            
+        if self.unsaved_warning():
+            return
             
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(None, 
                                                           'Выбрать изображения', 
@@ -71,6 +68,25 @@ class Detection:
         self.app.det_files_listWidget.takeItem(index)
 
         self.updateInfo()
+
+    def deleteAllFiles(self):
+        if self.unsaved_warning():
+            return
+
+        self.files = []
+        self.images = []
+        self.app.det_image_label.clear()
+        self.app.det_files_listWidget.clear()
+
+        self.updateInfo()
+
+    def unsaved_warning(self):
+        if self.files != []:
+            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
+                return True
+        return False
 
     def updateInfo(self):
         index = self.app.det_files_listWidget.currentIndex().row()

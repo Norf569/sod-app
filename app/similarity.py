@@ -31,6 +31,7 @@ class Similarity:
 
         self.app.sim_add_button.clicked.connect(self.getFiles)
         self.app.sim_delete_button.clicked.connect(self.deleteFile)
+        self.app.sim_delete_all_button.clicked.connect(self.deleteAllFiles)
         self.app.sim_files_tableWidget.clicked.connect(self.updateInfo)
         self.app.sim_add_src_button.clicked.connect(self.getSrcFile)
         self.app.sim_delete_src_button.clicked.connect(self.deleteSrcFile)
@@ -52,11 +53,8 @@ class Similarity:
         self.updateDegree()
 
     def getFiles(self):
-        if self.sims_list != []:
-            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
-                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
-            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
-                return
+        if self.unsaved_warning():
+            return
 
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(None, 
                                                             'Выбрать изображения', 
@@ -81,7 +79,18 @@ class Similarity:
         self.app.sim_files_tableWidget.setCurrentCell(0, 0)
         self.updateInfo()
 
+    def unsaved_warning(self):
+        if self.sims_list != []:
+            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
+                return True
+        return False
+
     def getSrcFile(self):
+        if self.unsaved_warning():
+            return
+
         #данные добавляются, а не удаляются
         file, _ = QtWidgets.QFileDialog.getOpenFileName(None, 
                                                         'Выбрать изображение', 
@@ -129,13 +138,32 @@ class Similarity:
         )
         self.updateInfo()
 
+    def deleteAllFiles(self):
+        if self.unsaved_warning():
+            return
+
+        self.files = []
+        self.sims_list = []
+        self.image = None
+        self.app.sim_image_label.clear()
+        self.app.sim_degree_label.clear()
+        self.app.sim_files_tableWidget.clearContents()
+        self.app.sim_files_tableWidget.setRowCount(0)
+
+        self.updateInfo()
+
+
     def deleteSrcFile(self):
+        if self.unsaved_warning():
+            return
+
         self.src_file = None
         self.src_image = None
         self.sims_list = []
         self.app.sim_src_lineEdit.clear()
         self.app.sim_src_label.clear()
         self.app.sim_degree_label.clear()
+        
         self.updateDegree()
 
     def updateInfo(self):

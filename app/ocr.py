@@ -30,6 +30,7 @@ class Ocr:
     def setup_ui(self):
         self.app.ocr_add_button.clicked.connect(self.getFiles)
         self.app.ocr_delete_button.clicked.connect(self.deleteFile)
+        self.app.ocr_delete_all_button.clicked.connect(self.deleteAllFiles)
         self.app.ocr_files_listWidget.clicked.connect(self.updateInfo)
 
         self.app.ocr_rus_button.setCheckable(True)
@@ -44,11 +45,8 @@ class Ocr:
         self.app.ocr_save_button.clicked.connect(self.save_callback)
 
     def getFiles(self):
-        if self.files != []:
-            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
-                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
-            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
-                return
+        if self.unsaved_warning():
+            return
 
         files, _ = QtWidgets.QFileDialog.getOpenFileNames(None, 
                                                           'Выбрать изображения', 
@@ -69,6 +67,14 @@ class Ocr:
         self.worker.getfiles_ended.connect(self.event_getfiles_ended)
         self.worker.finished.connect(self.event_worker_finished)
 
+    def unsaved_warning(self):
+        if self.files != []:
+            pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+            if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
+                return True
+        return False
+
     def deleteFile(self):
         index = self.app.ocr_files_listWidget.currentIndex().row()
 
@@ -82,6 +88,19 @@ class Ocr:
         self.app.ocr_textBrowser.clear()
         self.app.ocr_files_listWidget.takeItem(index)
 
+        self.updateInfo()
+
+    def deleteAllFiles(self):
+        if self.unsaved_warning():
+            return
+        
+        self.file = []
+        self.images = []
+        self.texts = []
+        self.app.ocr_image_label.clear()
+        self.app.ocr_textBrowser.clear()
+        self.app.ocr_files_listWidget.clear()
+        
         self.updateInfo()
 
     def updateInfo(self):
