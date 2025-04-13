@@ -1,4 +1,3 @@
-import threading
 from utils.TextDetector import TextDetector
 from utils.TextRecognizer import TextRecognizer
 from configs import config

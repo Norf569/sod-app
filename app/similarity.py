@@ -1,8 +1,7 @@
-import threading
 from utils.ImageSimilarity import ImageSimilarity
 from configs import config
 import logging
-from PyQt6 import QtWidgets, QtGui, QtCore
+from PyQt6 import QtWidgets, QtCore
 import design
 import os
 import cv2
@@ -22,6 +21,7 @@ class Similarity:
         self.sims_list = []
         self.slider_flag = False
         self.cancel_flag = False
+        self.worker = None
 
         self.setup_ui()
 
@@ -186,25 +186,18 @@ class Similarity:
             self.updateDegree()
 
     def setup_model(self):
-        self.logger.info('similarity model initializing...')
+        if not self.worker_isNone_msg():
+            return
+        
+        self.worker = InitWorker(self)
+        self.worker.start()
 
-        self.app.sim_info_label.setText('Инициализация модели...\n')
-        self.app.sim_cancel_button.setVisible(False)
-        self.app.sim_progressBar.setVisible(False)
-        self.app.stackedWidget_sim.setCurrentIndex(0)
+        event_init_ended = lambda: self.app.stackedWidget_sim.setCurrentIndex(1)
 
-        try:
-            self.similarity = ImageSimilarity(config.__VIT_MODEL__)
-        except Exception as ex:
-            self.app.sim_info_label.setText('Не удалось инициализировать модель!\n'
-                                            'Попробуйте перезапустить приложение')
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
-                                  'Не удалось инициализировать модель для определения сходства! Попробуйте перезапустить приложение', 
-                                  buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
-            self.logger.exception(ex)
-        else:
-            self.app.stackedWidget_sim.setCurrentIndex(1)
-            self.logger.info('similarity model initialized')
+        self.worker.init_started.connect(self.event_started)
+        self.worker.init_exept.connect(self.event_init_exept)
+        self.worker.init_ended.connect(event_init_ended)
+        self.worker.finished.connect(self.event_worker_finished)
 
     def process_callback(self):
         if self.files == [] or self.src_file == None:
@@ -212,57 +205,29 @@ class Similarity:
                                   QtWidgets.QMessageBox.StandardButton.Close).exec()
             return
         
-        threading.Thread(target=self.process).start()
-
-    def process(self):
         if self.similarity == None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 
                                   'Модель не инициализирована!', 
                                   buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
             return
+        
+        if not self.worker_isNone_msg():
+            return
+        
+        self.worker = ProcessWorker(self)
+        self.worker.start()
 
-        self.logger.info(f'processing...')
+        event_progress_bar_update =  lambda progress: self.app.sim_progressBar.setValue(progress)
 
-        self.app.sim_info_label.setText('Идёт вычисление степени сходства...')
-
-        progress = 0
-        self.app.sim_progressBar.setMaximum(len(self.files))
-        self.app.sim_progressBar.setValue(progress)
-
-        self.app.sim_cancel_button.setVisible(True)
-        self.app.sim_progressBar.setVisible(True)
-        self.app.stackedWidget_sim.setCurrentIndex(0)
-
-        try:
-            self.sims_list = ['NaN'] * len(self.files)
-
-            for index in range(len(self.files)):
-                if (self.cancel_flag):
-                    break
-                
-                img = cv2.imread(self.files[index])
-                sim = self.similarity.compute(self.src_image, img)
-                self.sims_list[index] = round((sim + 1) / 2.0 * 100)
-
-                progress += 1
-                self.app.sim_progressBar.setValue(progress)
-        except Exception as ex:
-            self.app.sim_info_label.setText('Ошибка во время обработки изображений!')
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
-                                  'Ошибка во время определения сходства! Попробейте перезапустить приложение', 
-                                  buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
-            self.logger.exception(ex)
-        else:
-            self.cancel_flag = False
-            self.logger.info(f'processing completed')
-
-        self.updateInfo()
-        self.updateDegree()
-        self.app.stackedWidget_sim.setCurrentIndex(1)
+        self.worker.processing_started.connect(self.evnet_prcessing_started)
+        self.worker.progress_bar_update.connect(event_progress_bar_update)
+        self.worker.processing_exept.connect(self.event_processing_exept)
+        self.worker.processing_ended.connect(self.evnet_prcessing_ended)
+        self.worker.finished.connect(self.event_worker_finished)
 
     def cancel(self):
         self.cancel_flag = True
-        # self.app.sim_info_label.setText('Остановка...')
+        self.app.sim_info_label.setText('Остановка...')
 
     def save(self):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(None,
@@ -292,3 +257,106 @@ class Similarity:
             self.logger.exception(ex)
         else:
             self.logger.info('json saved')
+
+    def event_started(self, text, visible = False):
+        self.app.sim_info_label.setText(text)
+        self.app.sim_cancel_button.setVisible(visible)
+        self.app.sim_progressBar.setVisible(visible)
+        self.app.stackedWidget_sim.setCurrentIndex(0)
+
+    def evnet_prcessing_started(self):
+        self.app.sim_progressBar.setMaximum(len(self.files))
+        self.app.sim_progressBar.setValue(0)
+
+        self.event_started('Идёт вычисление степени сходства...', True)
+
+    def event_processing_exept(self):
+        self.app.sim_info_label.setText('Ошибка во время обработки изображений!')
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
+                                'Ошибка во время определения сходства! Попробейте перезапустить приложение', 
+                                buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
+
+    def evnet_prcessing_ended(self):
+        self.cancel_flag = False
+        self.updateInfo()
+        self.updateDegree()
+        self.app.stackedWidget_sim.setCurrentIndex(1)
+
+    def event_worker_finished(self): 
+        self.worker = None
+
+    def event_init_exept(self):
+        self.app.sim_info_label.setText('Не удалось инициализировать модель!\n'
+                                            'Попробуйте перезапустить приложение')
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
+                                'Не удалось инициализировать модель для определения сходства! Попробуйте перезапустить приложение', 
+                                buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
+
+    def worker_isNone_msg(self):
+        if self.worker != None:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Происходит выполнение другой операции!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            return False
+        return True
+
+
+class InitWorker(QtCore.QThread):
+    init_started = QtCore.pyqtSignal(str)
+    init_exept = QtCore.pyqtSignal()
+    init_ended = QtCore.pyqtSignal()
+
+    def __init__(self, parent):
+        super().__init__()
+
+        self.parent_ = parent
+
+    def run(self):
+        self.parent_.logger.info('similarity model initializing...')
+        self.init_started.emit('Инициализация модели...\n')
+
+        try:
+            self.parent_.similarity = ImageSimilarity(config.__VIT_MODEL__)
+        except Exception as ex:
+            self.init_exept.emit()
+            self.parent_.logger.exception(ex)
+        else:
+            self.init_ended.emit()
+            self.parent_.logger.info('similarity model initialized')
+
+class ProcessWorker(QtCore.QThread):
+    processing_started = QtCore.pyqtSignal()
+    progress_bar_update = QtCore.pyqtSignal(int)
+    processing_exept = QtCore.pyqtSignal()
+    processing_ended = QtCore.pyqtSignal()
+
+    def __init__(self, parent):
+        super().__init__()
+
+        self.parent_ = parent
+
+    def run(self):
+        self.parent_.logger.info(f'processing...')
+        self.processing_started.emit()
+        progress = 0
+
+        try:
+            self.parent_.sims_list = ['NaN'] * len(self.parent_.files)
+
+            for index in range(len(self.parent_.files)):
+                if (self.parent_.cancel_flag):
+                    break
+                
+                img = cv2.imread(self.parent_.files[index])
+                sim = self.parent_.similarity.compute(self.parent_.src_image, img)
+                self.parent_.sims_list[index] = round((sim + 1) / 2.0 * 100)
+
+                progress += 1
+                self.progress_bar_update.emit(progress)
+        except Exception as ex:
+            self.processing_exept.emit()
+            self.parent_.logger.exception(ex)
+        else:
+            self.processing_ended.emit()
+            self.parent_.logger.info(f'processing completed')
+
+        

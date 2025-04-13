@@ -7,7 +7,6 @@ from utils.tools import update_pixmap
 from app.detection import Detection
 from app.ocr import Ocr 
 from app.similarity import Similarity
-import threading
 import logging
 
 
@@ -30,7 +29,7 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
         self.detector.setup_model()
         self.ocr.setup_model()
-        threading.Thread(target=self.similarity.setup_model).start()
+        self.similarity.setup_model()
 
     def resizeEvent(self, event):
         tab = self.tabWidget.currentIndex()
