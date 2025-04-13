@@ -2,9 +2,8 @@ import threading
 from utils.TextDetector import TextDetector
 from utils.TextRecognizer import TextRecognizer
 from configs import config
-from PIL import Image
 import logging
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtCore
 from utils.tools import update_pixmap
 import design
 import os
@@ -25,6 +24,7 @@ class Ocr:
         self.cidx = -1
         self.texts = []
         self.cancel_flag = False
+        self.worker = None
 
         self.setup_ui()
 
@@ -62,16 +62,13 @@ class Ocr:
         self.files = files
         self.images = []
         self.texts = []
-        for file in self.files:
-            self.images.append(cv2.imread(file))
-            self.texts.append([])
 
-        self.app.ocr_files_listWidget.clear()
-        self.app.ocr_files_listWidget.addItems(
-            [os.path.basename(file) for file in self.files]
-        )
-        self.app.ocr_files_listWidget.setCurrentRow(0)
-        self.updateInfo()
+        self.worker = GetFilesWorker(self)
+        self.worker.start()
+
+        self.worker.getfiles_started.connect(self.event_started)
+        self.worker.getfiles_ended.connect(self.event_getfiles_ended)
+        self.worker.finished.connect(self.event_worker_finished)
 
     def deleteFile(self):
         index = self.app.ocr_files_listWidget.currentIndex().row()
@@ -110,38 +107,18 @@ class Ocr:
         self.lang = 'rus'
 
     def setup_model(self):
-        self.logger.info('text detection model initializing...')
-
+        if not self.worker_isNone_msg():
+            return
         
-        self.app.ocr_info_label.setText('Инициализация модели обнаружения текста...\n')
-        self.app.ocr_cancel_button.setVisible(False)
-        self.app.ocr_progressBar.setVisible(False)
-        self.app.stackedWidget_ocr.setCurrentIndex(0)
+        self.worker = InitWorker(self)
+        self.worker.start()
 
-        try:
-            self.detector = TextDetector(config.__TEXTDET_MODEL__)
-        except Exception as ex:
-            self.app.ocr_info_label.setText('Не удалось инициализировать модель!\n'
-                                            'Попробуйте перезапустить приложение')
-            self.logger.exception(ex)
-        else: 
-            self.logger.info('text detection model initialized')
+        event_init_ended = lambda: self.app.stackedWidget_ocr.setCurrentIndex(1)
 
-        self.logger.info('text recognition model initializing...')
-        self.app.ocr_info_label.setText('Инициализация модели распознавания текста...\n')
-        try:
-            self.recognizer_eng = TextRecognizer(config.__OCR_MODEL_ENG__)
-            self.recognizer_rus = TextRecognizer(config.__OCR_MODEL_RUS__)
-        except Exception as ex:
-            self.app.ocr_info_label.setText('Не удалось инициализировать модель!\n'
-                                            'Попробуйте перезапустить приложение')
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
-                                  'Не удалось инициализировать модели обнаружения и распзнования текста! Попробуйте перезапустить приложение', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
-            self.logger.exception(ex)
-        else:
-            self.app.stackedWidget_ocr.setCurrentIndex(1)
-            self.logger.info('text recognition model initialized')
+        self.worker.init_started.connect(self.event_started)
+        self.worker.init_exept.connect(self.event_init_exept)
+        self.worker.init_ended.connect(event_init_ended)
+        self.worker.finished.connect(self.event_worker_finished)
 
     def dispose_model(self):
         pass
@@ -152,9 +129,6 @@ class Ocr:
                                   QtWidgets.QMessageBox.StandardButton.Close).exec()
             return
         
-        threading.Thread(target=self.process).start()
-
-    def process(self):
         if (self.detector == None or 
             self.recognizer_eng == None or
             self.recognizer_rus == None):
@@ -163,59 +137,23 @@ class Ocr:
                                   buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
             return
     
-        self.logger.info(f'text detection and recognition...')
+        if not self.worker_isNone_msg():
+            return
+        
+        self.worker = ProcessWorker(self)
+        self.worker.start()
 
-        self.app.ocr_info_label.setText('Идёт обнаружение и распознавание текста...')
+        event_progress_bar_update =  lambda progress: self.app.ocr_progressBar.setValue(progress)
 
-        progress = 0
-        self.app.ocr_progressBar.setMaximum(len(self.files))
-        self.app.ocr_progressBar.setValue(progress)
-
-        self.app.ocr_cancel_button.setVisible(True)
-        self.app.ocr_progressBar.setVisible(True)
-        self.app.stackedWidget_ocr.setCurrentIndex(0)
-
-        try:
-            self.texts = [''] * len(self.files) 
-            for index in range(len(self.files)):
-                if (self.cancel_flag):
-                    break
-
-                text = []
-                full_image, croped_images = self.detector.compute(self.images[index]).values()
-
-                if len(croped_images) > 0:
-                    for text_image in croped_images:
-                        if (self.lang == 'rus'):
-                            text.append(self.recognizer_rus.compute(text_image))
-                        elif (self.lang == 'eng'):
-                            text.append(self.recognizer_eng.compute(text_image))
-                        else:
-                            self.logger.error('invalid language')
-                            break
-                
-                self.images[index] = full_image
-                text.reverse()
-                self.texts[index] = text
-
-                progress += 1
-                self.app.ocr_progressBar.setValue(progress)
-
-        except Exception as ex:
-            self.logger.exception(ex)
-            self.app.ocr_info_label.setText('Ошибка во время обработки изображений!')
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
-                                  'Ошибка во время обнаружения и распозновнаие текста! Попробуйте перезапустить приложение', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
-        else:
-            self.cancel_flag = False
-            # self.updateInfo()
-            self.app.stackedWidget_ocr.setCurrentIndex(1)
-            self.logger.info(f'text detection and recognition done')
+        self.worker.processing_started.connect(self.evnet_prcessing_started)
+        self.worker.progress_bar_update.connect(event_progress_bar_update)
+        self.worker.processing_exept.connect(self.event_processing_exept)
+        self.worker.processing_ended.connect(self.evnet_prcessing_ended)
+        self.worker.finished.connect(self.event_worker_finished)
 
     def cancel(self):
         self.cancel_flag = True
-        # self.app.ocr_info_label.setText('Остановка...')
+        self.app.ocr_info_label.setText('Остановка...')
 
     def save_callback(self):
         path = QtWidgets.QFileDialog.getExistingDirectory(None,
@@ -229,36 +167,208 @@ class Ocr:
                                   QtWidgets.QMessageBox.StandardButton.Close).exec()
             return
         
-        threading.Thread(target=lambda: self.save(path)).start()
+        if not self.worker_isNone_msg():
+            return
+        
+        self.worker = SaveWorker(self, path)
+        self.worker.start()
 
-    def save(self, path):
-        self.logger.info('saving...')
+        event_saving_exept = lambda: QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось сохранить файлы!', 
+                                                           QtWidgets.QMessageBox.StandardButton.Close).exec()
+        event_saving_ended = lambda: self.app.stackedWidget_ocr.setCurrentIndex(1)
 
-        self.app.ocr_info_label.setText('Идёт сохранение...')
-        self.app.ocr_cancel_button.setVisible(False)
-        self.app.ocr_progressBar.setVisible(False)
+        self.worker.saving_started.connect(self.event_started)
+        self.worker.saving_exept.connect(event_saving_exept)
+        self.worker.saving_ended.connect(event_saving_ended)
+        self.worker.finished.connect(self.event_worker_finished)
+
+    def worker_isNone_msg(self):
+        if self.worker != None:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Происходит выполнение другой операции!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            return False
+        return True
+
+    def event_started(self, text, visible = False):
+        self.app.ocr_info_label.setText(text)
+        self.app.ocr_cancel_button.setVisible(visible)
+        self.app.ocr_progressBar.setVisible(visible)
         self.app.stackedWidget_ocr.setCurrentIndex(0)
 
+    def event_init_exept(self):
+        self.app.ocr_info_label.setText('Не удалось инициализировать модель!\n'
+                                            'Попробуйте перезапустить приложение')
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
+                                'Не удалось инициализировать модели обнаружения и распзнования текста! Попробуйте перезапустить приложение', 
+                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+
+    def event_worker_finished(self):
+        self.worker = None
+
+    def evnet_prcessing_started(self):
+        self.app.ocr_progressBar.setMaximum(len(self.files))
+        self.app.ocr_progressBar.setValue(0)
+
+        self.event_started('Идёт обнаружение и распознавание текста...', True)
+
+    def event_processing_exept(self):
+        self.app.ocr_info_label.setText('Ошибка во время обработки изображений!')
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
+                                'Ошибка во время обнаружения и распозновнаие текста! Попробуйте перезапустить приложение', 
+                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+
+    def evnet_prcessing_ended(self):
+        self.cancel_flag = False
+        self.updateInfo()
+        self.app.stackedWidget_ocr.setCurrentIndex(1)
+
+    def event_getfiles_ended(self):
+        self.app.ocr_files_listWidget.clear()
+        self.app.ocr_files_listWidget.addItems(
+            [os.path.basename(file) for file in self.files]
+        )
+
+        self.app.ocr_files_listWidget.setCurrentRow(0)
+        self.updateInfo()
+        self.app.stackedWidget_ocr.setCurrentIndex(1)
+
+
+class InitWorker(QtCore.QThread):
+    init_started = QtCore.pyqtSignal(str)
+    init_exept = QtCore.pyqtSignal()
+    init_ended = QtCore.pyqtSignal()
+
+    def __init__(self, parent):
+        super().__init__()
+
+        self.parent_ = parent
+
+    def run(self):
+        self.parent_.logger.info('text detection model initializing...')
+        self.init_started.emit('Инициализация модели обнаружения текста...\n')
+
         try:
-            dir = os.path.join(path, 'images')
+            self.parent_.detector = TextDetector(config.__TEXTDET_MODEL__)
+        except Exception as ex:
+            self.init_exept.emit()
+            self.parent_.logger.exception(ex)
+        else: 
+            self.parent_.logger.info('text detection model initialized')
+
+        self.parent_.logger.info('text recognition model initializing...')
+        self.init_started.emit('Инициализация модели распознавания текста...\n')
+        try:
+            self.parent_.recognizer_eng = TextRecognizer(config.__OCR_MODEL_ENG__)
+            self.parent_.recognizer_rus = TextRecognizer(config.__OCR_MODEL_RUS__)
+        except Exception as ex:
+            self.init_exept.emit()
+            self.parent_.logger.exception(ex)
+        else:
+            self.init_ended.emit()
+            self.parent_.logger.info('text recognition model initialized')
+
+class ProcessWorker(QtCore.QThread):
+    processing_started = QtCore.pyqtSignal()
+    progress_bar_update = QtCore.pyqtSignal(int)
+    processing_exept = QtCore.pyqtSignal()
+    processing_ended = QtCore.pyqtSignal()
+
+    def __init__(self, parent):
+        super().__init__()
+
+        self.parent_ = parent
+
+    def run(self):
+        self.parent_.logger.info(f'text detection and recognition...')
+        self.processing_started.emit()
+        progress = 0
+
+        try:
+            self.parent_.texts = [''] * len(self.parent_.files) 
+            for index in range(len(self.parent_.files)):
+                if (self.parent_.cancel_flag):
+                    break
+
+                text = []
+                full_image, croped_images = self.parent_.detector.compute(
+                    self.parent_.images[index]).values()
+
+                if len(croped_images) > 0:
+                    for text_image in croped_images:
+                        if (self.parent_.lang == 'rus'):
+                            text.append(self.parent_.recognizer_rus.compute(text_image))
+                        elif (self.parent_.lang == 'eng'):
+                            text.append(self.parent_.recognizer_eng.compute(text_image))
+                        else:
+                            self.parent_.logger.error('invalid language')
+                            break
+                
+                self.parent_.images[index] = full_image
+                text.reverse()
+                self.parent_.texts[index] = text
+
+                progress += 1
+                self.progress_bar_update.emit(progress)
+
+        except Exception as ex:
+            self.processing_exept.emit()
+            self.parent_.logger.exception(ex)
+        else:
+            self.processing_ended.emit()
+            self.parent_.logger.info(f'text detection and recognition done')
+
+class SaveWorker(QtCore.QThread):
+    saving_started = QtCore.pyqtSignal(str)
+    saving_exept = QtCore.pyqtSignal()
+    saving_ended = QtCore.pyqtSignal()
+
+    def __init__(self, parent, path):
+        super().__init__()
+
+        self.parent_ = parent
+        self.path = path
+
+    def run(self):
+        self.parent_.logger.info('saving...')
+        self.saving_started.emit('Идёт сохранение...')
+
+        try:
+            dir = os.path.join(self.path, 'images')
             os.mkdir(dir)
 
             res_dict = {}
-            for idx in range(len(self.files)):
-                name = os.path.basename(self.files[idx])
+            for idx in range(len(self.parent_.files)):
+                name = os.path.basename(self.parent_.files[idx])
 
                 res_dict[name] = {}
-                res_dict[name]['text'] = self.texts[idx]
+                res_dict[name]['text'] = self.parent_.texts[idx]
 
-                cv2.imwrite(os.path.join(dir, name), self.images[idx])
+                cv2.imwrite(os.path.join(dir, name), self.parent_.images[idx])
 
-            with open(os.path.join(path, 'recognized_text.json'), 'w', encoding='utf-8') as file:
+            with open(os.path.join(self.path, 'recognized_text.json'), 'w', encoding='utf-8') as file:
                 json.dump(res_dict, file, indent=2)
         except Exception as ex:
-            self.logger.exception(ex)
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось сохранить файлы!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            self.saving_exept.emit()
+            self.parent_.logger.exception(ex)
         else:
-            self.logger.info('saving completed')
+            self.saving_ended.emit()
+            self.parent_.logger.info('saving completed')
 
-        self.app.stackedWidget_ocr.setCurrentIndex(1)
+class GetFilesWorker(QtCore.QThread):
+    getfiles_started = QtCore.pyqtSignal(str)
+    getfiles_ended = QtCore.pyqtSignal()
+
+    def __init__(self, parent):
+        super().__init__()
+
+        self.parent_ = parent
+
+    def run(self):
+        if len(self.parent_.files) > 100:
+            self.getfiles_started.emit('Загрузка изображений...')
+
+        for file in self.parent_.files:
+            self.parent_.images.append(cv2.imread(file))
+            self.parent_.texts.append([])
+        
+        self.getfiles_ended.emit()

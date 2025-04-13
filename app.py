@@ -28,10 +28,8 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.ocr = Ocr(self)
         self.similarity = Similarity(self)
 
-        self.logger.info('app initialized')
-
         self.detector.setup_model()
-        threading.Thread(target=self.ocr.setup_model).start()
+        self.ocr.setup_model()
         threading.Thread(target=self.similarity.setup_model).start()
 
     def resizeEvent(self, event):

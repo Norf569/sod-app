@@ -55,24 +55,9 @@ class Detection:
         self.worker = GetFilesWorker(self)
         self.worker.start()
 
-        self.worker.getfiles_started.connect(lambda: self.event_started('Загрузка изображений...'))
+        self.worker.getfiles_started.connect(self.event_started)
         self.worker.getfiles_ended.connect(self.event_getfiles_ended)
         self.worker.finished.connect(self.event_worker_finished)
-
-    def event_getfiles_ended(self):
-        self.app.det_files_listWidget.clear()
-        self.app.det_files_listWidget.addItems(
-            [os.path.basename(file) for file in self.files]
-        )
-        self.app.det_files_listWidget.setCurrentRow(0)
-        self.updateInfo()
-        self.app.stackedWidget_detection.setCurrentIndex(1)
-
-    def event_started(self, text):
-        self.app.det_info_label.setText(text)
-        self.app.det_cancel_button.setVisible(False)
-        self.app.det_progressBar.setVisible(False)
-        self.app.stackedWidget_detection.setCurrentIndex(0)
 
     def deleteFile(self):
         index = self.app.det_files_listWidget.currentIndex().row()
@@ -96,13 +81,6 @@ class Detection:
 
         update_pixmap(self.app.det_image_label, self.images[index])
 
-    def worker_isNone_msg(self):
-        if self.worker != None:
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Происходит выполнение другой операции!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
-            return False
-        return True
-
     def setup_model(self):
         if not self.worker_isNone_msg():
             return
@@ -112,23 +90,10 @@ class Detection:
 
         event_init_ended = lambda: self.app.stackedWidget_detection.setCurrentIndex(1)
 
-        self.worker.init_started.connect(self.event_init_started)
+        self.worker.init_started.connect(self.event_started)
         self.worker.init_exept.connect(self.event_init_exept)
         self.worker.init_ended.connect(event_init_ended)
         self.worker.finished.connect(self.event_worker_finished)
-
-    def event_init_started(self):
-        self.app.det_info_label.setText('Инициализация модели обнаружения объектов...\n')
-        self.app.det_cancel_button.setVisible(False)
-        self.app.det_progressBar.setVisible(False)
-        self.app.stackedWidget_detection.setCurrentIndex(0)
-
-    def event_init_exept(self):
-        self.app.det_info_label.setText('Не удалось инициализировать модель!\n'
-                                            'Попробуйте перезапустить приложение')
-        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
-                                'Не удалось инициализировать модель обнаружения объектов! Попробуйте перезапустить приложение', 
-                                QtWidgets.QMessageBox.StandardButton.Close).exec()
 
     def dispose_model(self):
         pass
@@ -139,44 +104,26 @@ class Detection:
                                   QtWidgets.QMessageBox.StandardButton.Close).exec()
             return
         
+        if self.detector == None:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
+                                  'Модель не инициализирована!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            return
+        
         if not self.worker_isNone_msg():
             return
 
         self.worker = ProcessWorker(self)
         self.worker.start()
 
-        event_detection_isNoen = lambda: QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
-                                         'Модель не инициализирована!', 
-                                         QtWidgets.QMessageBox.StandardButton.Close).exec()
         event_progress_bar_update =  lambda progress: self.app.det_progressBar.setValue(progress)
 
-        self.worker.detector_isNone.connect(event_detection_isNoen)
-        self.worker.detection_started.connect(self.evnet_detecion_started)
+        self.worker.processing_started.connect(self.evnet_processing_started)
         self.worker.progress_bar_update.connect(event_progress_bar_update)
-        self.worker.detection_exept.connect(self.event_detection_exept)
-        self.worker.detection_ended.connect(self.event_detection_ended)
+        self.worker.processing_exept.connect(self.event_processing_exept)
+        self.worker.processing_ended.connect(self.evnet_prcessing_ended)
         self.worker.finished.connect(self.event_worker_finished)
         
-    def evnet_detecion_started(self):
-        self.app.det_progressBar.setMaximum(len(self.files))
-        self.app.det_progressBar.setValue(0)
-
-        self.event_started('Идёт обнаружение объектов...')
-
-    def event_detection_exept(self):
-        self.app.det_info_label.setText('Ошибка во время обработки изображений!')
-        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
-                                'Ошибка во время обнаружения объектов! Попробуйте перезапустить приложение', 
-                                QtWidgets.QMessageBox.StandardButton.Close).exec()
-    
-    def event_worker_finished(self):
-        self.worker = None
-        
-    def event_detection_ended(self):
-        self.cancel_flag = False
-        self.updateInfo()
-        self.app.stackedWidget_detection.setCurrentIndex(1)
-
     def cancel(self):
         self.cancel_flag = True
         self.app.det_info_label.setText('Остановка...')
@@ -203,14 +150,63 @@ class Detection:
                                                            QtWidgets.QMessageBox.StandardButton.Close).exec()
         event_saving_ended = lambda: self.app.stackedWidget_detection.setCurrentIndex(1)
 
-        self.worker.saving_started.connect(lambda: self.event_saving_started('Идёт сохранение...'))
+        self.worker.saving_started.connect(self.event_started)
         self.worker.saving_exept.connect(event_saving_exept)
         self.worker.saving_ended.connect(event_saving_ended)
         self.worker.finished.connect(self.event_worker_finished)
 
+    def worker_isNone_msg(self):
+        if self.worker != None:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Происходит выполнение другой операции!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+            return False
+        return True
+
+    def event_getfiles_ended(self):
+        self.app.det_files_listWidget.clear()
+        self.app.det_files_listWidget.addItems(
+            [os.path.basename(file) for file in self.files]
+        )
+        self.app.det_files_listWidget.setCurrentRow(0)
+        self.updateInfo()
+        self.app.stackedWidget_detection.setCurrentIndex(1)
+
+    def event_started(self, text, visible = False):
+        self.app.det_info_label.setText(text)
+        self.app.det_cancel_button.setVisible(visible)
+        self.app.det_progressBar.setVisible(visible)
+        self.app.stackedWidget_detection.setCurrentIndex(0)
+
+    def evnet_processing_started(self):
+        self.app.det_progressBar.setMaximum(len(self.files))
+        self.app.det_progressBar.setValue(0)
+
+        self.event_started('Идёт обнаружение объектов...', True)
+
+    def event_processing_exept(self):
+        self.app.det_info_label.setText('Ошибка во время обработки изображений!')
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
+                                'Ошибка во время обнаружения объектов! Попробуйте перезапустить приложение', 
+                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+    
+    def event_worker_finished(self):
+        self.worker = None
+        
+    def evnet_prcessing_ended(self):
+        self.cancel_flag = False
+        self.updateInfo()
+        self.app.stackedWidget_detection.setCurrentIndex(1)
+
+    def event_init_exept(self):
+        self.app.det_info_label.setText('Не удалось инициализировать модель!\n'
+                                            'Попробуйте перезапустить приложение')
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
+                                'Не удалось инициализировать модель обнаружения объектов! Попробуйте перезапустить приложение', 
+                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+
 
 class InitWorker(QtCore.QThread):
-    init_started = QtCore.pyqtSignal()
+    init_started = QtCore.pyqtSignal(str)
     init_exept = QtCore.pyqtSignal()
     init_ended = QtCore.pyqtSignal()
 
@@ -222,7 +218,7 @@ class InitWorker(QtCore.QThread):
     def run(self):
         self.parent_.logger.info('detection model initializing...')
 
-        self.init_started.emit()
+        self.init_started.emit('Инициализация модели обнаружения объектов...\n')
 
         try:
             self.parent_.detector = ObjectDetector(config.__OBJDET_MODEL__)
@@ -235,11 +231,10 @@ class InitWorker(QtCore.QThread):
             self.parent_.logger.info('detection model initialized')
 
 class ProcessWorker(QtCore.QThread):
-    detector_isNone = QtCore.pyqtSignal()
-    detection_started = QtCore.pyqtSignal()
+    processing_started = QtCore.pyqtSignal()
     progress_bar_update = QtCore.pyqtSignal(int)
-    detection_exept = QtCore.pyqtSignal()
-    detection_ended = QtCore.pyqtSignal()
+    processing_exept = QtCore.pyqtSignal()
+    processing_ended = QtCore.pyqtSignal()
 
     def __init__(self, parent: Detection): 
         super().__init__()
@@ -247,13 +242,8 @@ class ProcessWorker(QtCore.QThread):
         self.parent_ = parent
 
     def run(self):
-        if self.parent_.detector == None:
-            self.detector_isNone.emit()
-            return
-    
         self.parent_.logger.info(f'detecion...')
-
-        self.detection_started.emit()
+        self.processing_started.emit()
         progress = 0
 
         try:
@@ -275,13 +265,13 @@ class ProcessWorker(QtCore.QThread):
                 self.progress_bar_update.emit(progress)
         except Exception as ex:
             self.parent_.logger.exception(ex)
-            self.detection_exept.emit()
+            self.processing_exept.emit()
         else:
-            self.detection_ended.emit()
+            self.processing_ended.emit()
             self.parent_.logger.info(f'detection done')
 
 class SaveWorker(QtCore.QThread):
-    saving_started = QtCore.pyqtSignal()
+    saving_started = QtCore.pyqtSignal(str)
     saving_exept = QtCore.pyqtSignal()
     saving_ended = QtCore.pyqtSignal()
 
@@ -293,7 +283,7 @@ class SaveWorker(QtCore.QThread):
 
     def run(self):
         self.parent_.logger.info('saving...')
-        self.saving_started.emit()
+        self.saving_started.emit('Идёт сохранение...')
 
         try:
             for idx in range(len(self.parent_.images)):
@@ -307,7 +297,7 @@ class SaveWorker(QtCore.QThread):
             self.parent_.logger.info('saving completed')
 
 class GetFilesWorker(QtCore.QThread):
-    getfiles_started = QtCore.pyqtSignal()
+    getfiles_started = QtCore.pyqtSignal(str)
     getfiles_ended = QtCore.pyqtSignal()
 
     def __init__(self, parent: Detection):
@@ -317,7 +307,7 @@ class GetFilesWorker(QtCore.QThread):
 
     def run(self):
         if len(self.parent_.files) > 100:
-            self.getfiles_started.emit()
+            self.getfiles_started.emit('Загрузка изображений...')
 
         for file in self.parent_.files:
             self.parent_.images.append(cv2.imread(file))
