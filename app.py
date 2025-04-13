@@ -30,7 +30,7 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
         self.logger.info('app initialized')
 
-        threading.Thread(target=self.detector.setup_model).start()
+        self.detector.setup_model()
         threading.Thread(target=self.ocr.setup_model).start()
         threading.Thread(target=self.similarity.setup_model).start()
 
