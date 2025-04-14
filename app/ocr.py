@@ -356,12 +356,12 @@ class SaveWorker(QtCore.QThread):
 
             res_dict = {}
             for idx in range(len(self.parent_.files)):
-                name = os.path.basename(self.parent_.files[idx])
+                filename, extenstion = os.path.splitext(os.path.basename(self.parent_.files[idx]))
 
-                res_dict[name] = {}
-                res_dict[name]['text'] = self.parent_.texts[idx]
+                res_dict[filename] = {}
+                res_dict[filename]['text'] = self.parent_.texts[idx]
 
-                cv2.imwrite(os.path.join(dir, name), self.parent_.images[idx])
+                cv2.imwrite(os.path.join(dir, f'{filename}_text{extenstion}'), self.parent_.images[idx])
 
             with open(os.path.join(self.path, 'recognized_text.json'), 'w', encoding='utf-8') as file:
                 json.dump(res_dict, file, indent=2)

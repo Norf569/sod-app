@@ -263,7 +263,7 @@
                  </sizepolicy>
                 </property>
                 <property name="title">
-                 <string>Исходный файл</string>
+                 <string>Исходное изображение</string>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_6">
                  <property name="spacing">
@@ -327,7 +327,7 @@
                  </size>
                 </property>
                 <property name="title">
-                 <string>Результаты сравнения</string>
+                 <string>Изображения для сравнения</string>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_7">
                  <property name="spacing">

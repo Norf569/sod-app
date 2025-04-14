@@ -271,11 +271,31 @@ class ProcessWorker(QtCore.QThread):
                 for i in range(len(bbox)):
                     if (conf[i] >= self.parent_.conf_threshold):
                         x, y, w, h = list(map(round, bbox[i]))
-                        cv2.rectangle(image, (x-w//2, y-h//2), (x+w//2, y+h//2), (255, 255, 255), 2)
-                        cv2.putText(image, 
-                                    f'{self.parent_.labels[round(cls[i])]} ({round(conf[i], 2)})', 
-                                    (x-w//2, y-h//2), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
+                        text = f'{self.parent_.labels[round(cls[i])]} ({round(conf[i], 2)})'
+
+                        line_thickness = 2
+                        scale = 2
+                        font_thickness = round(scale / 2)
+                        fontFamily = cv2.FONT_HERSHEY_PLAIN
+                        fontLineType = cv2.LINE_AA
+
+                        cv2.rectangle(image, (x-w//2, y-h//2), (x+w//2, y+h//2), (255, 255, 255), line_thickness, fontLineType)
+
+                        text_size = cv2.getTextSize(text, fontFamily, scale, font_thickness)
+                        if text_size[0][0] >= w - line_thickness:
+                            scale = 1.0 * scale * (w - line_thickness) / text_size[0][0]
+                            font_thickness = round(scale)
+                        text_size = cv2.getTextSize(text, fontFamily, scale, font_thickness)
+                        
+                        cv2.rectangle(image, 
+                                      (x-w//2, y-h//2), 
+                                      (x-w//2 + text_size[0][0], y-h//2 + text_size[0][1] + text_size[1] * 2), 
+                                      (255, 255, 255), 
+                                      -1)
+                        cv2.putText(image, text, 
+                                    (x-w//2, y-h//2 + text_size[0][1] + text_size[1]), 
+                                    fontFamily, scale, (0, 0, 0), 
+                                    font_thickness, fontLineType)
                         
                 progress += 1
                 self.progress_bar_update.emit(progress)
