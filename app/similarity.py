@@ -1,7 +1,7 @@
 from utils.ImageSimilarity import ImageSimilarity
 from configs import config
 import logging
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 import design
 import os
 import cv2
@@ -42,6 +42,12 @@ class Similarity:
         self.app.sim_degree_slider.valueChanged.connect(self.thresholdUpdate)
         self.app.sim_degree_slider.sliderPressed.connect(self.pressedFlagRaise)
         self.app.sim_degree_slider.sliderReleased.connect(self.pressedFlagDown)
+
+        onlyInt = QtGui.QIntValidator()
+        onlyInt.setRange(0, 100)
+        self.app.sim_degree_lineEdit.setValidator(onlyInt)
+        self.app.sim_degree_lineEdit.textEdited.connect(self.thresholdUpdateLine)
+        # self.app.sim_degree_lineEdit.editingFinished.connect(lambda: print(1))        
 
         self.app.sim_cancel_button.clicked.connect(self.cancel)
 
@@ -212,6 +218,24 @@ class Similarity:
 
         if (not self.slider_flag):
             self.updateDegree()
+
+    def thresholdUpdateLine(self):
+        if (self.app.sim_degree_lineEdit.text() == ''):
+            self.app.sim_degree_lineEdit.setText('0')
+
+        try:
+            self.threshold = int(self.app.sim_degree_lineEdit.text())
+            self.app.sim_degree_slider.setValue(self.threshold)
+
+            self.updateDegree()
+        except Exception as ex:
+            self.logger.exception(ex)
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось установить фильтр!', 
+                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+
+    def lineEditEmptyCheck(self):
+        if self.app.sim_degree_lineEdit.text() == '': 
+            self.app.sim_degree_lineEdit.setText('0')
 
     def setup_model(self):
         if not self.worker_isNone_msg():

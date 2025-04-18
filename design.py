@@ -172,7 +172,7 @@ class Ui_MainWindow(object):
         self.sim_degree_lineEdit.setSizePolicy(sizePolicy)
         self.sim_degree_lineEdit.setMaximumSize(QtCore.QSize(40, 16777215))
         self.sim_degree_lineEdit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.sim_degree_lineEdit.setReadOnly(True)
+        self.sim_degree_lineEdit.setReadOnly(False)
         self.sim_degree_lineEdit.setObjectName("sim_degree_lineEdit")
         self.horizontalLayout_12.addWidget(self.sim_degree_lineEdit)
         self.sim_degree_slider = QtWidgets.QSlider(parent=self.groupBox_8)

@@ -28,7 +28,7 @@ class TextDetector:
 
             poly = np.array([[polygon[j], polygon[j+1]] for j in range(0, len(polygon), 2)], dtype=np.int32)
 
-            cv2.polylines(full_img, [poly], True, (0, 0, 0))
+            cv2.polylines(full_img, [poly], True, (127, 127, 127), 1)
 
             croped_img = img.copy()[min_y:max_y, min_x:max_x]
             mask = np.zeros(img.shape[:2], dtype=np.uint8)
