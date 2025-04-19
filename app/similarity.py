@@ -4,7 +4,7 @@ import logging
 from PyQt6 import QtWidgets, QtCore, QtGui
 import design
 import os
-import cv2
+import cv2  
 import json
 from utils.tools import update_pixmap
 
@@ -26,8 +26,9 @@ class Similarity:
         self.setup_ui()
 
     def setup_ui(self):
-        self.app.sim_files_tableWidget.setHorizontalHeaderLabels(['Название', 'Процент схожести', 'index'])
+        self.app.sim_files_tableWidget.setHorizontalHeaderLabels(['Название', 'Процент сходства', 'index'])
         self.app.sim_files_tableWidget.setColumnHidden(2, True)
+        self.app.sim_files_tableWidget.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
 
         self.app.sim_add_button.clicked.connect(self.getFiles)
         self.app.sim_delete_button.clicked.connect(self.deleteFile)
@@ -88,7 +89,7 @@ class Similarity:
     def unsaved_warning(self):
         if self.sims_list != []:
             pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
-                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No, self.app).exec()
             if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
                 return True
         return False
@@ -157,7 +158,6 @@ class Similarity:
         self.app.sim_files_tableWidget.setRowCount(0)
 
         self.updateInfo()
-
 
     def deleteSrcFile(self):
         if self.unsaved_warning():
@@ -231,7 +231,7 @@ class Similarity:
         except Exception as ex:
             self.logger.exception(ex)
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось установить фильтр!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
 
     def lineEditEmptyCheck(self):
         if self.app.sim_degree_lineEdit.text() == '': 
@@ -254,13 +254,13 @@ class Similarity:
     def process_callback(self):
         if self.files == [] or self.src_file == None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Недостаточно данных для обработки!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return
         
         if self.similarity == None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 
                                   'Модель не инициализирована!', 
-                                  buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  buttons=QtWidgets.QMessageBox.StandardButton.Close, parent=self.app).exec()
             return
         
         if not self.worker_isNone_msg():
@@ -290,7 +290,7 @@ class Similarity:
         
         if self.sims_list == []:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для сохранения!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return
 
         self.logger.info('saving...')
@@ -305,7 +305,7 @@ class Similarity:
                 json.dump(output_dict, file, indent=2, ensure_ascii=False)
         except Exception as ex:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось сохранить файлы!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             self.logger.exception(ex)
         else:
             self.logger.info('json saved')
@@ -326,7 +326,7 @@ class Similarity:
         self.app.sim_info_label.setText('Ошибка во время обработки изображений!')
         QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
                                 'Ошибка во время определения сходства! Попробейте перезапустить приложение', 
-                                buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                buttons=QtWidgets.QMessageBox.StandardButton.Close, parent=self.app).exec()
 
     def evnet_prcessing_ended(self):
         self.cancel_flag = False
@@ -342,12 +342,12 @@ class Similarity:
                                             'Попробуйте перезапустить приложение')
         QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
                                 'Не удалось инициализировать модель для определения сходства! Попробуйте перезапустить приложение', 
-                                buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                buttons=QtWidgets.QMessageBox.StandardButton.Close, parent=self.app).exec()
 
     def worker_isNone_msg(self):
         if self.worker != None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Происходит выполнение другой операции!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return False
         return True
 
@@ -394,12 +394,13 @@ class ProcessWorker(QtCore.QThread):
         try:
             self.parent_.sims_list = ['NaN'] * len(self.parent_.files)
 
+            self.parent_.similarity.src(self.parent_.src_image)
             for index in range(len(self.parent_.files)):
                 if (self.parent_.cancel_flag):
                     break
                 
                 img = cv2.imread(self.parent_.files[index])
-                sim = self.parent_.similarity.compute(self.parent_.src_image, img)
+                sim = self.parent_.similarity.compute(img)
                 self.parent_.sims_list[index] = round((sim + 1) / 2.0 * 100)
 
                 progress += 1
