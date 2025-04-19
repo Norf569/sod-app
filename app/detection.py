@@ -1,4 +1,3 @@
-import threading
 from utils.ObjectDetector import ObjectDetector
 from configs import config
 import logging
@@ -7,6 +6,7 @@ import design
 import os
 import cv2
 from utils.tools import update_pixmap
+import json
 
 class Detection:
     def __init__(self, app: design.Ui_MainWindow):
@@ -17,6 +17,7 @@ class Detection:
         self.conf_threshold = 0.5
         self.files = []
         self.images = []
+        self.image_objs = []
         self.cidx = -1
         self.cancel_flag = False
         self.worker = None
@@ -24,6 +25,10 @@ class Detection:
         self.setup_ui()
 
     def setup_ui(self):
+        self.app.det_tableWidget.setHorizontalHeaderLabels(['№', 'Процент уверенности', 'Название объекта'])
+        self.app.det_tableWidget.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
+        self.app.det_tableWidget.resizeColumnsToContents()
+
         self.app.det_image_label.setText('')
         self.app.det_add_button.clicked.connect(self.getFiles)
         self.app.det_delete_button.clicked.connect(self.deleteFile)
@@ -47,6 +52,9 @@ class Detection:
         if (files == [] or not self.worker_isNone_msg()):
             return
 
+        self.images = []
+        self.image_objs = []
+
         self.files = files
 
         self.worker = GetFilesWorker(self)
@@ -64,6 +72,8 @@ class Detection:
         
         self.files.pop(index)
         self.images.pop(index)
+        if (index < len(self.image_objs)):
+            self.image_objs.pop(index)
         self.app.det_image_label.clear()
         self.app.det_files_listWidget.takeItem(index)
 
@@ -75,7 +85,10 @@ class Detection:
 
         self.files = []
         self.images = []
+        self.image_objs = []
         self.app.det_image_label.clear()
+        self.app.det_tableWidget.clearContents()
+        self.app.det_tableWidget.setRowCount(0)
         self.app.det_files_listWidget.clear()
 
         self.updateInfo()
@@ -83,7 +96,7 @@ class Detection:
     def unsaved_warning(self):
         if self.files != []:
             pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
-                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No, self.app).exec()
             if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
                 return True
         return False
@@ -96,6 +109,19 @@ class Detection:
             return
 
         update_pixmap(self.app.det_image_label, self.images[index])
+
+        self.app.det_tableWidget.clearContents()
+        self.app.det_tableWidget.setRowCount(0)
+        if (index >= len(self.image_objs)):
+            return
+
+        clss, confs = self.image_objs[index].values()
+        self.app.det_tableWidget.setRowCount(len(clss))
+
+        for i in range(len(clss)):
+            self.app.det_tableWidget.setItem(i, 0, QtWidgets.QTableWidgetItem(str(i+1)))
+            self.app.det_tableWidget.setItem(i, 1, QtWidgets.QTableWidgetItem(str(round(confs[i] * 100))))
+            self.app.det_tableWidget.setItem(i, 2, QtWidgets.QTableWidgetItem(clss[i]))         
 
     def setup_model(self):
         if not self.worker_isNone_msg():
@@ -117,13 +143,13 @@ class Detection:
     def process_callback(self):
         if self.files == []:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для обработки!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return
         
         if self.detector == None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
                                   'Модель не инициализирована!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return
         
         if not self.worker_isNone_msg():
@@ -153,7 +179,7 @@ class Detection:
         
         if self.files == []:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для сохранения!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return
 
         if not self.worker_isNone_msg():
@@ -163,18 +189,21 @@ class Detection:
         self.worker.start()
 
         event_saving_exept = lambda: QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось сохранить файлы!', 
-                                                           QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                                           QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
+        event_saving_file_exists = lambda: QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Сохраняемые файлы уже существуют! Выберите другую папку', 
+                                                           QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
         event_saving_ended = lambda: self.app.stackedWidget_detection.setCurrentIndex(1)
 
         self.worker.saving_started.connect(self.event_started)
         self.worker.saving_exept.connect(event_saving_exept)
+        self.worker.saving_file_exists.connect(event_saving_file_exists)
         self.worker.saving_ended.connect(event_saving_ended)
         self.worker.finished.connect(self.event_worker_finished)
 
     def worker_isNone_msg(self):
         if self.worker != None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Происходит выполнение другой операции!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return False
         return True
 
@@ -203,7 +232,7 @@ class Detection:
         self.app.det_info_label.setText('Ошибка во время обработки изображений!')
         QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
                                 'Ошибка во время обнаружения объектов! Попробуйте перезапустить приложение', 
-                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
     
     def event_worker_finished(self):
         self.worker = None
@@ -218,7 +247,7 @@ class Detection:
                                             'Попробуйте перезапустить приложение')
         QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
                                 'Не удалось инициализировать модель обнаружения объектов! Попробуйте перезапустить приложение', 
-                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
 
 
 class InitWorker(QtCore.QThread):
@@ -268,10 +297,13 @@ class ProcessWorker(QtCore.QThread):
                     break
 
                 bbox, cls, conf = self.parent_.detector.compute(image).values()
+                objs = {'cls': [],  'conf': []}
                 for i in range(len(bbox)):
                     if (conf[i] >= self.parent_.conf_threshold):
                         x, y, w, h = list(map(round, bbox[i]))
-                        text = f'{self.parent_.labels[round(cls[i])]} ({round(conf[i], 2)})'
+                        text = str(i+1)
+                        objs['cls'].append(self.parent_.labels[round(cls[i])])
+                        objs['conf'].append(round(conf[i], 2))
 
                         line_thickness = 2
                         scale = 2
@@ -279,7 +311,7 @@ class ProcessWorker(QtCore.QThread):
                         fontFamily = cv2.FONT_HERSHEY_PLAIN
                         fontLineType = cv2.LINE_AA
 
-                        cv2.rectangle(image, (x-w//2, y-h//2), (x+w//2, y+h//2), (255, 255, 255), line_thickness, fontLineType)
+                        cv2.rectangle(image, (x-w//2, y-h//2), (x+w//2, y+h//2), (127, 127, 127), line_thickness, fontLineType)
 
                         text_size = cv2.getTextSize(text, fontFamily, scale, font_thickness)
                         if text_size[0][0] >= w - line_thickness:
@@ -297,6 +329,8 @@ class ProcessWorker(QtCore.QThread):
                                     fontFamily, scale, (0, 0, 0), 
                                     font_thickness, fontLineType)
                         
+                self.parent_.image_objs.append(objs)
+
                 progress += 1
                 self.progress_bar_update.emit(progress)
         except Exception as ex:
@@ -309,6 +343,7 @@ class ProcessWorker(QtCore.QThread):
 class SaveWorker(QtCore.QThread):
     saving_started = QtCore.pyqtSignal(str)
     saving_exept = QtCore.pyqtSignal()
+    saving_file_exists = QtCore.pyqtSignal()
     saving_ended = QtCore.pyqtSignal()
 
     def __init__(self, parent, path):
@@ -322,15 +357,35 @@ class SaveWorker(QtCore.QThread):
         self.saving_started.emit('Идёт сохранение...')
 
         try:
-            for idx in range(len(self.parent_.images)):
+            dir = os.path.join(self.path, 'images')
+            os.mkdir(dir)
+
+            res_dict = {}
+            for idx in range(len(self.parent_.files)):
                 filename, extension = os.path.splitext(os.path.basename(self.parent_.files[idx]))
-                cv2.imwrite(os.path.join(self.path, f'{filename}_objects{extension}'), self.parent_.images[idx])
+                cv2.imwrite(os.path.join(dir, f'{filename}_objects{extension}'), self.parent_.images[idx])
+                
+                if idx >= len(self.parent_.image_objs):
+                    continue
+
+                res_dict[filename] = {}
+                for obj_idx in range(len(self.parent_.image_objs[idx]['cls'])):
+                    res_dict[filename][obj_idx + 1] = {}
+                    res_dict[filename][obj_idx + 1]['cls'] = self.parent_.image_objs[idx]['cls'][obj_idx]
+                    res_dict[filename][obj_idx + 1]['conf'] = self.parent_.image_objs[idx]['conf'][obj_idx]
+                
+
+            with open(os.path.join(self.path, 'image_objects.json'), 'w', encoding='utf-8') as file:
+                json.dump(res_dict, file, indent=2)
+        except FileExistsError as ex:
+            self.parent_.logger.exception(ex)
+            self.saving_file_exists.emit()
         except Exception as ex:
             self.parent_.logger.exception(ex)
             self.saving_exept.emit()
         else:
-            self.saving_ended.emit()
             self.parent_.logger.info('saving completed')
+        self.saving_ended.emit()
 
 class GetFilesWorker(QtCore.QThread):
     getfiles_started = QtCore.pyqtSignal(str)
