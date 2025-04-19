@@ -1,4 +1,5 @@
 	
+import logging.handlers
 import sys 
 from PyQt6 import QtWidgets, QtGui
 import design
@@ -18,6 +19,8 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
         self.logger.info('app initialization...')
 
         self.setupUi(self)
+
+        self.setWindowIcon(QtGui.QIcon('icon.png'))
 
         font = QtGui.QFont();
         font.setPointSize(12);
@@ -48,8 +51,14 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
         super().resizeEvent(event)
 
 def main():
-    logging.basicConfig(filename='log.log', level=logging.INFO,
-                        filemode='w', format='%(asctime)s %(name)s %(levelname)s %(message)s')
+
+    handler = logging.handlers.RotatingFileHandler(filename='app.log',
+                                                            mode='a',
+                                                            maxBytes=536870912, #500 mb
+                                                            backupCount=1)
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)s %(levelname)s %(message)s',
+                        handlers=[handler])
     logging.info('logging started')
 
     try:

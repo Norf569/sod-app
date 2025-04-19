@@ -1,4 +1,5 @@
 *.log
+*.log.1
 models/
 **/__pycache__
 tests/
