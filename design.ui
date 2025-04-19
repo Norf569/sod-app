@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>SOD App</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout_7">
@@ -30,7 +30,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab_similarity">
        <attribute name="title">
@@ -244,7 +244,7 @@
                     </size>
                    </property>
                    <property name="text">
-                    <string>Степень сходства</string>
+                    <string/>
                    </property>
                    <property name="alignment">
                     <set>Qt::AlignCenter</set>
@@ -372,7 +372,7 @@
                     <number>3</number>
                    </property>
                    <attribute name="horizontalHeaderVisible">
-                    <bool>true</bool>
+                    <bool>false</bool>
                    </attribute>
                    <attribute name="horizontalHeaderStretchLastSection">
                     <bool>true</bool>
@@ -416,7 +416,7 @@
               <item>
                <widget class="QGroupBox" name="groupBox_8">
                 <property name="title">
-                 <string>Фильтр по проценту сходства</string>
+                 <string>Пороговое значение процента сходства</string>
                 </property>
                 <layout class="QHBoxLayout" name="horizontalLayout_12">
                  <item>
@@ -524,7 +524,7 @@
                  <item row="0" column="0">
                   <widget class="QLabel" name="sim_src_label">
                    <property name="text">
-                    <string>Изображение</string>
+                    <string/>
                    </property>
                    <property name="scaledContents">
                     <bool>false</bool>
@@ -552,7 +552,7 @@
                  <item row="0" column="0">
                   <widget class="QLabel" name="sim_image_label">
                    <property name="text">
-                    <string>Изображение</string>
+                    <string/>
                    </property>
                    <property name="scaledContents">
                     <bool>false</bool>
@@ -919,7 +919,7 @@
                     </sizepolicy>
                    </property>
                    <property name="text">
-                    <string>Изображение</string>
+                    <string/>
                    </property>
                    <property name="scaledContents">
                     <bool>false</bool>
@@ -1228,6 +1228,9 @@
             </item>
             <item>
              <layout class="QVBoxLayout" name="verticalLayout_10">
+              <property name="spacing">
+               <number>10</number>
+              </property>
               <property name="leftMargin">
                <number>5</number>
               </property>
@@ -1267,7 +1270,7 @@
                     </size>
                    </property>
                    <property name="text">
-                    <string>Изображение</string>
+                    <string/>
                    </property>
                    <property name="scaledContents">
                     <bool>false</bool>
@@ -1275,6 +1278,46 @@
                    <property name="alignment">
                     <set>Qt::AlignCenter</set>
                    </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QGroupBox" name="groupBox_12">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="title">
+                 <string>Объекты на изображении</string>
+                </property>
+                <layout class="QGridLayout" name="gridLayout_4">
+                 <item row="0" column="0">
+                  <widget class="QTableWidget" name="det_tableWidget">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="wordWrap">
+                    <bool>true</bool>
+                   </property>
+                   <property name="columnCount">
+                    <number>3</number>
+                   </property>
+                   <attribute name="horizontalHeaderStretchLastSection">
+                    <bool>true</bool>
+                   </attribute>
+                   <attribute name="verticalHeaderVisible">
+                    <bool>false</bool>
+                   </attribute>
+                   <column/>
+                   <column/>
+                   <column/>
                   </widget>
                  </item>
                 </layout>

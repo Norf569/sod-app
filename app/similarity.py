@@ -29,6 +29,7 @@ class Similarity:
         self.app.sim_files_tableWidget.setHorizontalHeaderLabels(['Название', 'Процент сходства', 'index'])
         self.app.sim_files_tableWidget.setColumnHidden(2, True)
         self.app.sim_files_tableWidget.setEditTriggers(QtWidgets.QTableWidget.EditTrigger.NoEditTriggers)
+        self.app.det_tableWidget.resizeColumnsToContents()
 
         self.app.sim_add_button.clicked.connect(self.getFiles)
         self.app.sim_delete_button.clicked.connect(self.deleteFile)

@@ -70,7 +70,7 @@ class Ocr:
     def unsaved_warning(self):
         if self.files != []:
             pressed = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Предупреждение', 'Несохранённые данные будут потеряны! Продолжить?', 
-                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No, self.app).exec()
             if pressed != QtWidgets.QMessageBox.StandardButton.Yes:
                 return True
         return False
@@ -144,7 +144,7 @@ class Ocr:
     def process_callback(self):
         if (self.files == []): 
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для обработки!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return
         
         if (self.detector == None or 
@@ -152,7 +152,7 @@ class Ocr:
             self.recognizer_rus == None):
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 
                                   'Модели не инициализированы!', 
-                                  buttons=QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  buttons=QtWidgets.QMessageBox.StandardButton.Close, parent=   self.app).exec()
             return
     
         if not self.worker_isNone_msg():
@@ -182,7 +182,7 @@ class Ocr:
         
         if (self.files == []): 
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Нет данных для сохранения!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return
         
         if not self.worker_isNone_msg():
@@ -192,18 +192,21 @@ class Ocr:
         self.worker.start()
 
         event_saving_exept = lambda: QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Не удалось сохранить файлы!', 
-                                                           QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                                           QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
+        event_saving_file_exists = lambda: QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 'Сохраняемые файлы уже существуют! Выберите другую папку', 
+                                                           QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
         event_saving_ended = lambda: self.app.stackedWidget_ocr.setCurrentIndex(1)
 
         self.worker.saving_started.connect(self.event_started)
         self.worker.saving_exept.connect(event_saving_exept)
+        self.worker.saving_file_exists.connect(event_saving_file_exists)
         self.worker.saving_ended.connect(event_saving_ended)
         self.worker.finished.connect(self.event_worker_finished)
 
     def worker_isNone_msg(self):
         if self.worker != None:
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Information, 'Ошибка', 'Происходит выполнение другой операции!', 
-                                  QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                  QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
             return False
         return True
 
@@ -218,7 +221,7 @@ class Ocr:
                                             'Попробуйте перезапустить приложение')
         QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
                                 'Не удалось инициализировать модели обнаружения и распзнования текста! Попробуйте перезапустить приложение', 
-                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
 
     def event_worker_finished(self):
         self.worker = None
@@ -227,13 +230,14 @@ class Ocr:
         self.app.ocr_progressBar.setMaximum(len(self.files))
         self.app.ocr_progressBar.setValue(0)
 
-        self.event_started('Идёт обнаружение и распознавание текста...', True)
+        lang_ru = 'рус' if self.lang == 'rus' else 'англ'
+        self.event_started(f'Идёт обнаружение и распознавание текста ({lang_ru})...', True)
 
     def event_processing_exept(self):
         self.app.ocr_info_label.setText('Ошибка во время обработки изображений!')
         QtWidgets.QMessageBox(QtWidgets.QMessageBox.Icon.Critical, 'Ошибка', 
                                 'Ошибка во время обнаружения и распозновнаие текста! Попробуйте перезапустить приложение', 
-                                QtWidgets.QMessageBox.StandardButton.Close).exec()
+                                QtWidgets.QMessageBox.StandardButton.Close, self.app).exec()
 
     def evnet_prcessing_ended(self):
         self.cancel_flag = False
@@ -365,12 +369,15 @@ class SaveWorker(QtCore.QThread):
 
             with open(os.path.join(self.path, 'recognized_text.json'), 'w', encoding='utf-8') as file:
                 json.dump(res_dict, file, indent=2)
+        except FileExistsError as ex:
+            self.parent_.logger.exception(ex)
+            self.saving_file_exists.emit()
         except Exception as ex:
             self.saving_exept.emit()
             self.parent_.logger.exception(ex)
         else:
-            self.saving_ended.emit()
             self.parent_.logger.info('saving completed')
+        self.saving_ended.emit()
 
 class GetFilesWorker(QtCore.QThread):
     getfiles_started = QtCore.pyqtSignal(str)
