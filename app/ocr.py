@@ -270,7 +270,7 @@ class InitWorker(QtCore.QThread):
         self.init_started.emit('Инициализация модели обнаружения текста...\n')
 
         try:
-            self.parent_.detector = TextDetector(config.__TEXTDET_MODEL__)
+            self.parent_.detector = TextDetector(config.__TEXTDET_MODEL__, config.__TEXTDET_WEIGHTS__)
         except Exception as ex:
             self.init_exept.emit()
             self.parent_.logger.exception(ex)

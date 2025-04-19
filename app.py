@@ -20,7 +20,7 @@ class App(QtWidgets.QMainWindow, design.Ui_MainWindow):
 
         self.setupUi(self)
 
-        self.setWindowIcon(QtGui.QIcon('icon.png'))
+        self.setWindowIcon(QtGui.QIcon('icon.ico'))
 
         font = QtGui.QFont();
         font.setPointSize(12);

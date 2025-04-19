@@ -5,8 +5,8 @@ from mmocr.apis import TextDetInferencer
 from sklearn.linear_model import LinearRegression
 
 class TextDetector:
-    def __init__(self, model_path):
-        self._inferencer = TextDetInferencer(model=model_path)
+    def __init__(self, model, weights):
+        self._inferencer = TextDetInferencer(model=model, weights=weights)
         self._linear_model = LinearRegression()
     
     def compute(self, img: np.ndarray):
