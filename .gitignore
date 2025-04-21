@@ -3,3 +3,6 @@
 models/
 **/__pycache__
 tests/
+build
+dist
+app.spec
